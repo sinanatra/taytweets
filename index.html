@@ -1,190 +1,72 @@
 <!DOCTYPE html>
-<meta charset="utf-8">
-
+<meta charset="utf-8" />
+<title>Where Tay Learned From</title>
 <style>
-	body {
-		font-family: sans-serif;
-
-	}
-
-	path {
-		stroke: black;
-		stroke-width: 0.25px;
-		fill: white;
-
-	}
-
-	.graticule {
-		fill: none;
-		stroke: black;
-		stroke-width: 0.25px;
-		stroke-dasharray: 1, 1;
-
-	}
-
-	#svg {
-
-		width: 100%;
-		height: auto;
-	}
-
-	.stroke {
-		stroke: #000;
-		stroke-width: 3px;
-	}
-
-	div.tooltip {
-		position: absolute;
-		text-align: center;
-		height: 28px;
-		padding: 2px;
-		font: 12px sans-serif;
-		background: white;
-		border: 0px;
-		border-radius: 8px;
-		pointer-events: none;
-	}
+  :root{--bg:#faf9f8;--text:#141414;--muted:#666;--land:#ddd;--water:#faf9f8;--stroke:#bbb;--point:#d03b3b}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:Georgia,"Times New Roman",serif}
+  .page{max-width:760px;margin:5rem auto;padding:0 1.5rem}
+  h1{font-size:clamp(30px,4vw,40px);line-height:1.2;margin-bottom:1rem;font-weight:600}
+  p{font-size:1.08rem;line-height:1.7;margin:1rem 0}
+  .mapWrap{width:100%;margin:4rem 0}
+  .mapWrap svg{width:100%;height:auto;display:block}
+  .graticule{fill:none;stroke:var(--stroke);stroke-width:.5;stroke-dasharray:2 2}
+  .land{fill:var(--land);stroke:var(--stroke);stroke-width:.4}
+  .boundary{fill:none;stroke:#aaa;stroke-width:.5}
+  .point{fill:var(--point);fill-opacity:.7;stroke:rgba(0,0,0,.3);stroke-width:.4}
+  .tooltip{position:fixed;transform:translate(-50%,-120%);pointer-events:none;background:#111;color:#fff;font-size:12px;line-height:1.3;padding:6px 8px;border-radius:6px;opacity:0;transition:opacity .1s}
+  a{color:inherit;text-decoration:none}
 </style>
 
-<body>
-	<p style="width: 50%;">
-		By finding a text file on Reddit containing a list of tweets of users who engaged with <a
-			href="https://en.wikipedia.org/wiki/Tay_(bot)">Tay</a>, it was then possible
-		to recreate a map based on the geographies of these teachers. All of it has been achieved by retrieving, for
-		each users the personal location that they shared on Twitter.
+<div class="page">
+  <h1>Where Tay Learned From</h1>
 
-	</p>
-	<script src="https://d3js.org/d3.v3.min.js"></script>
-	<script src="https://d3js.org/topojson.v0.min.js"></script>
+  <p>
+    Tay was an AI chatter bot released by Microsoft on Twitter in 2016. It learned by talking to other accounts. Within sixteen hours it started to post offensive messages and was shut down. The posts were removed.
+  </p>
+  <p>
+    The question is simple: who made it racist? Who were the people who interacted with Tay, and where they were from? When visualising datasets, we often compare elements only inside the dataset. We rarely see when something was collected, from which part of the world, and by whom. Without that context it is hard to understand bias.
+  </p>
+  <p>
+    By recovering a text file shared on Reddit listing users who engaged with Tay, it is possible to map the self-declared locations of those accounts. Many profiles are gone or imprecise. Still, by tracing what remains we can study the origins of the teaching material, not only the behaviour of the bot.
+  </p>
+</div>
 
-	<script src="https://d3js.org/d3-array.v1.min.js"></script>
-	<script src="https://d3js.org/d3-geo.v1.min.js"></script>
-	<script src="https://d3js.org/d3-geo-projection.v2.min.js"></script>
-	<script>
-		var width = 980,
-			height = 500;
+<div class="mapWrap" id="viz"></div>
+<div class="tooltip" id="tooltip"></div>
 
-		var projection = d3.geoVanDerGrinten4()
+<div class="page">
+  <p>
+    Each dot marks a profile that published a location on its page. These are not coordinates of action but of self-description. Biases, inaccuracies, and absences remain part of the picture. They are not bugs to erase, but signals to examine if we want to understand how systems like Tay learn from us.
+  </p>
+</div>
 
-
-		var svg = d3.select("body")
-			.append("div")
-			.attr("id", "svg")
-			.append("svg")
-			.attr("viewBox", "0 0 " + width + " " + height)
-			.attr("preserveAspectRatio", "xMinYMin");
-
-
-
-		var graticule = d3.geo.graticule()
-		//.step([15, 20]);
-
-
-		var path = d3.geo.path()
-			.projection(projection)
-
-
-
-		svg.append("defs").append("path")
-			.datum({ type: "Sphere" })
-			.attr("id", "sphere")
-			.attr("d", path);
-
-		svg.append("use")
-			.attr("class", "stroke")
-			.attr("xlink:href", "#sphere");
-
-		svg.append("path")
-			.datum(graticule)
-			.attr("class", "graticule")
-			.attr("d", path);
-
-
-		var g = svg.append("g");
-		// Define the div for the tooltip
-		var div = d3.select("body").append("div")
-			.attr("class", "tooltip")
-			.style("opacity", 0);
-
-		// load and display the World
-		d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-10m.json", function (error, topology) {
-
-			// load and display the cities
-			d3.tsv("data.tsv", function (error, data) {
-				g.selectAll("circle")
-					.data(data)
-					.enter()
-					.append("a")
-					.attr("target", "blank")
-					.attr("xlink:href", function (d) {
-						return "https://twitter.com/" + d.name;
-					}
-					)
-					.on("mouseover", function (d) {
-						div.transition()
-							.duration(200)
-							.style("opacity", .9);
-						div.html("https://twitter.com/" + d.name + d.close)
-							.style("left", (d3.event.pageX) + "px")
-							.style("top", (d3.event.pageY - 28) + "px");
-					})
-					.on("mouseout", function (d) {
-						div.transition()
-							.duration(500)
-							.style("opacity", 0);
-					})
-					.append("circle")
-					.attr("cx", function (d) {
-						return projection([d.lon, d.lat])[0];
-					})
-					.attr("cy", function (d) {
-						return projection([d.lon, d.lat])[1];
-					})
-					.attr("r", 3)
-					.style("fill", "var(--highlite-color);")
-					.style("opacity", ".2");
-			});
-
-
-			g.selectAll("path")
-				.data(topojson.object(topology, topology.objects.countries)
-					.geometries)
-				.enter()
-				.append("path")
-				.attr("d", path)
-		});
-
-		// zoom and pan
-		var zoom = d3.behavior.zoom()
-			.on("zoom", function () {
-				g.attr("transform", "translate(" +
-					d3.event.translate.join(",") + ")scale(" + d3.event.scale + ")");
-				g.selectAll("circle")
-					.attr("d", path.projection(projection))
-				if (d3.event.scale < 5) {
-					g.selectAll("circle")
-						.attr("r", 2)
-				};
-				if (d3.event.scale > 5) {
-					g.selectAll("circle")
-						.attr("r", d3.event.scale / 10)
-				};
-				if (d3.event.scale > 10) {
-					g.selectAll("circle")
-						.attr("r", d3.event.scale / 50)
-				};
-				if (d3.event.scale > 15) {
-					g.selectAll("circle")
-						.attr("r", d3.event.scale / 100)
-				};
-				g.selectAll("path")
-					.attr("d", path.projection(projection));
-
-			});
-
-		//svg.call(zoom)
-
-	</script>
-</body>
-
-</html>
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+<script>
+  const container=document.getElementById("viz")
+  const tooltip=document.getElementById("tooltip")
+  const width=window.innerWidth
+  const height=Math.max(420,Math.floor(width*0.5))
+  const projection=d3.geoEqualEarth().fitExtent([[20,20],[width-20,height-20]],{type:"Sphere"})
+  const path=d3.geoPath(projection)
+  const svg=d3.select(container).append("svg").attr("viewBox",`0 0 ${width} ${height}`)
+  const g=svg.append("g")
+  g.append("path").datum({type:"Sphere"}).attr("fill","var(--water)").attr("d",path)
+  g.append("path").datum(d3.geoGraticule10()).attr("class","graticule").attr("d",path)
+  let baseR=3
+  Promise.all([
+    d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"),
+    d3.tsv("data.tsv",d3.autoType)
+  ]).then(([world,data])=>{
+    const countries=topojson.feature(world,world.objects.countries)
+    g.append("path").datum(countries).attr("class","land").attr("d",path)
+    const mesh=topojson.mesh(world,world.objects.countries,(a,b)=>a!==b)
+    g.append("path").datum(mesh).attr("class","boundary").attr("d",path)
+    const pts=data.filter(d=>Number.isFinite(d.lat)&&Number.isFinite(d.lon))
+    const nodes=g.selectAll("a").data(pts).join("a").attr("href",d=>`https://x.com/${String(d.name||"").replace(/^@/,"")}`).attr("target","_blank").attr("rel","noopener noreferrer")
+    nodes.append("circle").attr("class","point").attr("r",baseR).attr("cx",d=>projection([d.lon,d.lat])[0]).attr("cy",d=>projection([d.lon,d.lat])[1])
+    nodes.on("pointerenter",(event,d)=>{tooltip.style.opacity=1;tooltip.innerHTML=`<b>${d.name||""}</b><br>${d.place||""}`}).on("pointermove",(event)=>{tooltip.style.left=`${event.clientX}px`;tooltip.style.top=`${event.clientY}px`}).on("pointerleave",()=>{tooltip.style.opacity=0})
+    const zoom=d3.zoom().scaleExtent([1,12]).on("zoom",({transform})=>{g.attr("transform",transform);g.selectAll(".point").attr("r",Math.max(1,baseR/transform.k))})
+    svg.call(zoom)
+  })
+</script>
