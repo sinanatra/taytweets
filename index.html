@@ -1,100 +1,156 @@
 <!DOCTYPE html>
-<meta charset="utf-8" />
-<title>Where Tay Learned From</title>
-<style>
-  :root{--bg:#fff;--text:#111;--muted:#555;--land:#e4e4e4;--water:#fff;--stroke:#111;--point:#111;--accent:#d03b3b}
-  *{box-sizing:border-box}
-  html,body{margin:0;background:var(--bg);color:var(--text);font-family:"Helvetica Neue",Helvetica,Arial,sans-serif}
-  a{color:inherit}
-  .wrap{display:flex;min-height:100vh;align-items:stretch}
-  .side{width:min(38vw,460px);flex:0 0 auto;padding:.75rem;border-right:2px solid var(--text);display:flex;flex-direction:column;justify-content:space-between;position:sticky;top:0;height:100vh;overflow-y:auto}
-  h1{font-size:clamp(2.1rem,3.6vw,3rem);line-height:1.02;font-weight:400;letter-spacing:-.03em;text-transform:uppercase;margin:0 0 1.75rem}
-  p{font-size:.95rem;line-height:1.55;margin:0 0 1.1rem;color:var(--text);font-weight:400}
-  .side .foot{font-size:.78rem;line-height:1.5;color:var(--muted);border-top:1px solid #ccc;padding-top:1rem;margin-top:1.5rem}
-  .side .foot p{margin:0 0 .6rem;color:var(--muted)}
-  .mapCol{flex:1 1 auto;position:relative;background:var(--water);display:flex;align-items:center;justify-content:center;overflow:hidden}
-  .mapCol svg{display:block;max-width:100%;max-height:100%}
-  .graticule{fill:none;stroke:#ddd;stroke-width:.5}
-  .land{fill:var(--land);stroke:var(--stroke);stroke-width:.5}
-  .boundary{fill:none;stroke:#bbb;stroke-width:.5}
-  .point{fill:#111;fill-opacity:.85;stroke:#fff;stroke-width:.4}
-  .density{pointer-events:none}
-  .tooltip{position:fixed;transform:translate(-50%,-120%);pointer-events:none;background:#111;color:#fff;font-size:11px;line-height:1.3;padding:5px 7px;opacity:0;transition:opacity .1s;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif}
-  @media (max-width:760px){
-    .wrap{flex-direction:column}
-    .side{width:100%;border-right:none;border-bottom:2px solid var(--text);position:static;height:auto}
-    .mapCol svg{height:70vh}
-  }
-</style>
+<html>
 
-<div class="wrap">
-  <div class="side">
-    <div>
-      <h1>Where Tay<br/>Learned From</h1>
-      <p>
-        Tay was an AI chatter bot released by Microsoft on Twitter in 2016. It learned by talking to other accounts. Within sixteen hours it started to post offensive messages and was shut down. The posts were removed.
-      </p>
-      <p>
-        The question is simple: who made it racist? Who were the people who interacted with Tay, and where they were from? When visualising datasets, we often compare elements only inside the dataset. We rarely see when something was collected, from which part of the world, and by whom. Without that context it is hard to understand bias.
-      </p>
-      <p>
-        By recovering a text file shared on Reddit listing users who engaged with Tay, it is possible to map the self-declared locations of those accounts. Many profiles are gone or imprecise. Still, by tracing what remains we can study the origins of the teaching material, not only the behaviour of the bot.
-      </p>
-    </div>
-    <div class="foot">
-      <p>
-        Each dot marks a profile that published a location on its page. These are not coordinates of action but of self-description. Biases, inaccuracies, and absences remain part of the picture. They are not bugs to erase, but signals to examine if we want to understand how systems like Tay learn from us.
-      </p>
-    </div>
-  </div>
-  <div class="mapCol" id="viz"></div>
-</div>
-<div class="tooltip" id="tooltip"></div>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Where Tay Learned From</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            font-family: "Helvetica", sans-serif;
+            font-size: 28px;
+            background-color: white;
+            color: black;
+            margin: 10px;
+            padding: 0;
+            text-rendering: optimizeLegibility;
+            max-width: 1024px;
+        }
 
-<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
-<script src="https://cdn.jsdelivr.net/npm/d3-contour@4"></script>
-<script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
-<script>
-  const container=document.getElementById("viz")
-  const tooltip=document.getElementById("tooltip")
-  function render(){
-    container.innerHTML=""
-    const availW=container.clientWidth
-    const availH=window.innerWidth<=760?Math.round(window.innerHeight*0.7):window.innerHeight
-    const aspect=1.97
-    let width=availW,height=Math.round(width/aspect)
-    if(height>availH){height=availH;width=Math.round(height*aspect)}
-    const projection=d3.geoEqualEarth().fitExtent([[10,10],[width-10,height-10]],{type:"Sphere"})
-    const path=d3.geoPath(projection)
-    const svg=d3.select(container).append("svg").attr("viewBox",`0 0 ${width} ${height}`).style("width",`${width}px`).style("height",`${height}px`)
-    const g=svg.append("g")
-    g.append("path").datum({type:"Sphere"}).attr("fill","var(--water)").attr("d",path)
-    g.append("path").datum(d3.geoGraticule10()).attr("class","graticule").attr("d",path)
-    Promise.all([
-      d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"),
-      d3.tsv("data.tsv",d3.autoType)
-    ]).then(([world,data])=>{
-      const countries=topojson.feature(world,world.objects.countries)
-      g.append("path").datum(countries).attr("class","land").attr("d",path)
-      const mesh=topojson.mesh(world,world.objects.countries,(a,b)=>a!==b)
-      g.append("path").datum(mesh).attr("class","boundary").attr("d",path)
-      const pts=data.filter(d=>Number.isFinite(d.lat)&&Number.isFinite(d.lon))
-      const density=d3.contourDensity()
-        .x(d=>projection([d.lon,d.lat])[0])
-        .y(d=>projection([d.lon,d.lat])[1])
-        .size([width,height])
-        .bandwidth(14)
-        .thresholds(10)
-        (pts)
-      const color=d3.scaleSequential(d3.extent(density,d=>d.value),d3.interpolateReds)
-      g.append("g").attr("class","density").selectAll("path").data(density).join("path")
-        .attr("d",d3.geoPath()).attr("fill",d=>color(d.value)).attr("stroke","none")
-      const nodes=g.selectAll("a").data(pts).join("a").attr("href",d=>`https://x.com/${String(d.name||"").replace(/^@/,"")}`).attr("target","_blank").attr("rel","noopener noreferrer")
-      nodes.append("circle").attr("class","point").attr("r",3).attr("cx",d=>projection([d.lon,d.lat])[0]).attr("cy",d=>projection([d.lon,d.lat])[1])
-      nodes.on("pointerenter",(event,d)=>{tooltip.style.opacity=1;tooltip.innerHTML=`${d.name||""}<br>${d.place||""}`}).on("pointermove",(event)=>{tooltip.style.left=`${event.clientX}px`;tooltip.style.top=`${event.clientY}px`}).on("pointerleave",()=>{tooltip.style.opacity=0})
-    })
-  }
-  render()
-  let resizeTimer
-  window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(render,150)})
-</script>
+        h1,
+        h2,
+        h3,
+        p {
+            font-weight: 400;
+        }
+
+        .mapCol {
+            max-width: 1024px;
+            position: relative;
+        }
+
+        .mapCol svg {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+
+        .graticule {
+            fill: none;
+            stroke: #ddd;
+            stroke-width: .5;
+        }
+
+        .land {
+            fill: #e4e4e4;
+            stroke: black;
+            stroke-width: .5;
+        }
+
+        .boundary {
+            fill: none;
+            stroke: #bbb;
+            stroke-width: .5;
+        }
+
+        .point {
+            fill: black;
+            fill-opacity: .85;
+            stroke: white;
+            stroke-width: .4;
+        }
+
+        .density {
+            pointer-events: none;
+        }
+
+        .tooltip {
+            position: fixed;
+            transform: translate(-50%, -120%);
+            pointer-events: none;
+            background: black;
+            color: white;
+            font-size: 14px;
+            line-height: 1.3;
+            padding: 5px 7px;
+            opacity: 0;
+            transition: opacity .1s;
+            font-family: "Helvetica", sans-serif;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Where Tay Learned From</h1>
+    <p>
+        Tay was an AI chatter bot released by Microsoft on Twitter in 2016. It learned by talking to other accounts.
+        Within sixteen hours it started to post offensive messages and was shut down. The posts were removed.
+    </p>
+    <p>
+        The question is simple: who made it racist? Who were the people who interacted with Tay, and where were they
+        from? When visualising datasets, we often compare elements only inside the dataset. We rarely see when
+        something was collected, from which part of the world, and by whom. Without that context it is hard to
+        understand bias.
+    </p>
+    <p>
+        By recovering a text file shared on Reddit listing users who engaged with Tay, it is possible to map the
+        self-declared locations of those accounts. Many profiles are gone or imprecise. Still, by tracing what
+        remains we can study the origins of the teaching material, not only the behaviour of the bot.
+    </p>
+    <p>
+        Each dot marks a profile that published a location on its page. These are not coordinates of action but of
+        self-description. Biases, inaccuracies, and absences remain part of the picture. They are not bugs to erase,
+        but signals to examine if we want to understand how systems like Tay learn from us.
+    </p>
+    <div class="mapCol" id="viz"></div>
+    <div class="tooltip" id="tooltip"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3-contour@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+    <script>
+        const container = document.getElementById("viz")
+        const tooltip = document.getElementById("tooltip")
+        function render() {
+            container.innerHTML = ""
+            const width = Math.min(container.clientWidth, 1024)
+            const aspect = 1.97
+            const height = Math.round(width / aspect)
+            const projection = d3.geoEqualEarth().fitExtent([[10, 10], [width - 10, height - 10]], { type: "Sphere" })
+            const path = d3.geoPath(projection)
+            const svg = d3.select(container).append("svg").attr("viewBox", `0 0 ${width} ${height}`).style("width", `${width}px`).style("height", `${height}px`)
+            const g = svg.append("g")
+            g.append("path").datum({ type: "Sphere" }).attr("fill", "white").attr("d", path)
+            g.append("path").datum(d3.geoGraticule10()).attr("class", "graticule").attr("d", path)
+            Promise.all([
+                d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"),
+                d3.tsv("data.tsv", d3.autoType)
+            ]).then(([world, data]) => {
+                const countries = topojson.feature(world, world.objects.countries)
+                g.append("path").datum(countries).attr("class", "land").attr("d", path)
+                const mesh = topojson.mesh(world, world.objects.countries, (a, b) => a !== b)
+                g.append("path").datum(mesh).attr("class", "boundary").attr("d", path)
+                const pts = data.filter(d => Number.isFinite(d.lat) && Number.isFinite(d.lon))
+                const density = d3.contourDensity()
+                    .x(d => projection([d.lon, d.lat])[0])
+                    .y(d => projection([d.lon, d.lat])[1])
+                    .size([width, height])
+                    .bandwidth(14)
+                    .thresholds(10)
+                    (pts)
+                const color = d3.scaleSequential(d3.extent(density, d => d.value), d3.interpolateGreys)
+                g.append("g").attr("class", "density").selectAll("path").data(density).join("path")
+                    .attr("d", d3.geoPath()).attr("fill", d => color(d.value)).attr("stroke", "none")
+                const nodes = g.selectAll("a").data(pts).join("a").attr("href", d => `https://x.com/${String(d.name || "").replace(/^@/, "")}`).attr("target", "_blank").attr("rel", "noopener noreferrer")
+                nodes.append("circle").attr("class", "point").attr("r", 3).attr("cx", d => projection([d.lon, d.lat])[0]).attr("cy", d => projection([d.lon, d.lat])[1])
+                nodes.on("pointerenter", (event, d) => { tooltip.style.opacity = 1; tooltip.innerHTML = `${d.name || ""}<br>${d.place || ""}` }).on("pointermove", (event) => { tooltip.style.left = `${event.clientX}px`; tooltip.style.top = `${event.clientY}px` }).on("pointerleave", () => { tooltip.style.opacity = 0 })
+            })
+        }
+        render()
+        let resizeTimer
+        window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(render, 150) })
+    </script>
+</body>
+
+</html>
